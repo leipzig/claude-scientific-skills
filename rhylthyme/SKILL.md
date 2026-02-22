@@ -4,7 +4,7 @@ description: Real-time workflow orchestration platform for scientific timing and
 license: Apache-2.0
 compatibility: Web application (rhylthyme.com), iOS app, Python CLI (rhylthyme-cli-runner), and HTTP MCP server (mcp.rhylthyme.com)
 metadata:
-    skill-author: K-Dense Inc.
+    skill-author: Jeremy Leipzig
 ---
 
 # Rhylthyme - Scientific Timing & Logistics
