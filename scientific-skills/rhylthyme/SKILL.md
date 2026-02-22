@@ -678,7 +678,7 @@ For complex protocols spanning multiple days with precise timing requirements:
 - Manufacturing and QC protocol examples
 
 ### Support and Community
-- **Discord Community:** Real-time help and protocol sharing
+- **Slack Community:** Join the discussion at https://rhylthyme.slack.com/
 - **Email Support:** [email protected]
 - **Training Materials:** Video tutorials and best practices guides
 
