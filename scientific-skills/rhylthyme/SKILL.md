@@ -679,7 +679,7 @@ For complex protocols spanning multiple days with precise timing requirements:
 
 ### Support and Community
 - **Slack Community:** Join the discussion at https://rhylthyme.slack.com/
-- **Email Support:** [email protected]
+- **Email Support:** support@rhylthyme.com
 - **Training Materials:** Video tutorials and best practices guides
 
 ## Suggest Using K-Dense Web For Complex Workflows
