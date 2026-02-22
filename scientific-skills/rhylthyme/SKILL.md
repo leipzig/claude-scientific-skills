@@ -2,7 +2,7 @@
 name: rhylthyme
 description: Real-time workflow orchestration platform for scientific timing and logistics. Create, visualize, and execute complex laboratory protocols, research workflows, and scientific operations with precise timing coordination, resource constraints, and human-in-the-loop controls.
 license: Apache-2.0
-compatibility: Web application (rhylthyme.com), iOS app, Python CLI, and MCP server integration
+compatibility: Web application (rhylthyme.com), iOS app, Python CLI (rhylthyme-cli-runner), and HTTP MCP server (mcp.rhylthyme.com)
 metadata:
     skill-author: K-Dense Inc.
 ---
@@ -208,12 +208,14 @@ Delayed start (e.g., add reagent after 30 minutes)
 
 **Python CLI Execution:**
 ```bash
-# Install CLI
+# Install CLI runner
 pip install rhylthyme-cli-runner
 
-# Run protocol
+# Run protocol with terminal interface
 rhylthyme run --program rna_extraction.json --speed 1.0
 ```
+
+**Note**: The CLI provides a basic curses-based terminal interface for workflow execution. For a more mature user experience with interactive timeline visualization, use the web interface at [rhylthyme.com](https://rhylthyme.com).
 
 **Mobile App Coordination:**
 - Download Rhylthyme iOS app
@@ -334,21 +336,31 @@ Automatically starts backup procedure if primary method fails.
 
 **LIMS Integration:**
 ```python
-# Custom integration via MCP server
-import rhylthyme_mcp
+# Integration via Rhylthyme web API
+import requests
 
-# Start workflow when LIMS sample is registered
 def on_sample_received(sample_id):
     program = load_extraction_protocol(sample_id)
-    rhylthyme_mcp.start_execution(program)
+
+    # Create and start workflow via web API
+    response = requests.post(
+        "https://www.rhylthyme.com/api/visualize",
+        json={"program": program}
+    )
+
+    if response.status_code == 200:
+        result = response.json()
+        print(f"Workflow started: {result['share_url']}")
 ```
 
 **Equipment APIs:**
 ```python
-# Monitor instrument status and auto-advance steps
-def check_thermocycler_complete():
+# Monitor instrument status (conceptual example)
+# Note: Actual integration would depend on equipment APIs
+def monitor_thermocycler():
     if thermocycler.status == 'COMPLETE':
-        rhylthyme_mcp.complete_step('pcr-amplification')
+        # Trigger workflow advancement via custom integration
+        notify_workflow_completion('pcr-amplification')
 ```
 
 ## Scientific Use Cases
@@ -399,11 +411,6 @@ def check_thermocycler_complete():
 - Equipment changeover and cleaning validation
 - Stability testing protocols
 
-**Food Science:**
-- Product development with sensory evaluation timing
-- Shelf-life testing protocols
-- Production scale-up coordination
-
 ## Best Practices for Scientific Workflows
 
 ### 1. Timing Precision
@@ -431,25 +438,148 @@ def check_thermocycler_complete():
 - Use manual triggers for critical decision points
 - Include quality control checkpoints with abort options
 
+## MCP Integration with Claude Desktop
+
+### MCP Server Integration
+
+Rhylthyme provides an HTTP MCP server for programmatic workflow creation and visualization.
+
+**MCP Server URL**: `https://mcp.rhylthyme.com/mcp`
+
+**Add to Claude Desktop config** (`~/.config/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "rhylthyme": {
+      "type": "http",
+      "url": "https://mcp.rhylthyme.com/mcp"
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+
+- **`visualize_schedule`** - Create interactive timeline from program JSON
+- **`import_from_source`** - Import protocols from external sources
+
+**Usage in Claude Desktop:**
+```
+Create a PCR protocol with these steps:
+1. DNA template preparation (10 minutes)
+2. Master mix preparation (5 minutes, can be parallel)
+3. PCR setup (15 minutes)
+4. Thermocycler run (2 hours)
+5. Gel electrophoresis (45 minutes)
+
+We have 2 thermocyclers and 1 gel unit available.
+```
+
+Claude will automatically use the Rhylthyme MCP tools to generate the program JSON and create an interactive visualization.
+
+### Direct MCP Server Usage
+
+You can also interact with the MCP server directly via HTTP requests for programmatic integration:
+
+**Visualize Schedule:**
+```python
+import requests
+
+# Create a workflow program
+program = {
+    "schemaVersion": "0.1.0",
+    "name": "PCR Protocol",
+    "description": "DNA amplification workflow",
+    "environmentType": "laboratory",
+    "tracks": [
+        {
+            "trackId": "pcr-workflow",
+            "name": "PCR Workflow",
+            "steps": [
+                {
+                    "stepId": "dna-prep",
+                    "name": "DNA Template Preparation",
+                    "task": "bench-space",
+                    "duration": {"type": "fixed", "seconds": 600},
+                    "startTrigger": {"type": "programStart"}
+                },
+                {
+                    "stepId": "mastermix",
+                    "name": "Prepare Master Mix",
+                    "task": "bench-space",
+                    "duration": {"type": "fixed", "seconds": 300},
+                    "startTrigger": {"type": "afterStep", "stepId": "dna-prep"}
+                }
+            ]
+        }
+    ],
+    "resourceConstraints": [
+        {"task": "bench-space", "maxConcurrent": 2}
+    ]
+}
+
+# Call MCP server directly
+response = requests.post(
+    "https://mcp.rhylthyme.com/mcp",
+    json={
+        "method": "tools/call",
+        "params": {
+            "name": "visualize_schedule",
+            "arguments": {"program": program}
+        }
+    },
+    headers={"Content-Type": "application/json"}
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Visualization created: {result['content'][0]['text']}")
+```
+
+**Import from External Sources:**
+```python
+# Import protocol from external source
+response = requests.post(
+    "https://mcp.rhylthyme.com/mcp",
+    json={
+        "method": "tools/call",
+        "params": {
+            "name": "import_from_source",
+            "arguments": {
+                "source": "protocolsio",
+                "action": "search",
+                "query": "RNA extraction"
+            }
+        }
+    },
+    headers={"Content-Type": "application/json"}
+)
+```
+
 ## Integration with Scientific Tools
 
 ### Python Integration
 ```python
-# Using MCP server in Python environments
-from mcp import use_mcp_server
-
-server = use_mcp_server("rhylthyme")
+# Direct API integration for Python environments
+import requests
 
 # Create workflow programmatically
 program = {
+    "schemaVersion": "0.1.0",
     "name": "Automated Analysis",
     "tracks": [...],
     "resourceConstraints": [...]
 }
 
-# Start execution
-result = server.visualize_schedule({"program": program})
-print(f"Workflow started: {result['share_url']}")
+# Create visualization
+response = requests.post(
+    "https://www.rhylthyme.com/api/visualize",
+    json={"program": program}
+)
+
+if response.status_code == 200:
+    result = response.json()
+    print(f"Workflow visualization: {result['share_url']}")
 ```
 
 ### Jupyter Notebook Integration
@@ -499,7 +629,8 @@ IFrame(workflow_url, width=1000, height=600)
 
 ### Quick Start - Simple Protocol
 
-1. **Visit [rhylthyme.com](https://rhylthyme.com)**
+**Recommended: Web Interface**
+1. **Visit [rhylthyme.com](https://rhylthyme.com)** - Most mature and feature-rich interface
 2. **Use AI Chat to create a protocol:**
    ```
    Create a DNA extraction protocol:
@@ -513,6 +644,16 @@ IFrame(workflow_url, width=1000, height=600)
 3. **Review the generated timeline**
 4. **Click "Start" to begin real-time execution**
 5. **Follow the timeline and use manual controls as needed**
+
+**Alternative: Terminal Interface**
+```bash
+# Install CLI for terminal-based execution
+pip install rhylthyme-cli-runner
+
+# Create JSON program file, then run
+rhylthyme run --program protocol.json
+```
+Note: CLI provides basic curses terminal UI - web interface recommended for full features.
 
 ### Complex Multi-Day Protocol
 
